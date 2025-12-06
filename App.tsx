@@ -1,9 +1,11 @@
+
 import React, { useState, useCallback } from 'react';
 import { analyzeImage } from './services/geminiService';
 import { AnalysisResult, AppState } from './types';
 import { Loading } from './components/Loading';
 import { AROverlay } from './components/AROverlay';
-import { CameraIcon, UploadIcon, SparklesIcon } from './components/Icons';
+import { CameraView } from './components/CameraView';
+import { CameraIcon, UploadIcon } from './components/Icons';
 
 function App() {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
@@ -11,36 +13,44 @@ function App() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Reusable function to process an image (from file or camera)
+  const processImage = useCallback(async (base64: string) => {
+    setImageSrc(base64);
+    setAppState(AppState.ANALYZING);
+    setError(null);
+
+    try {
+      // Minimum loading time for UX (so the animation isn't too jarringly fast)
+      const minLoadTime = new Promise(resolve => setTimeout(resolve, 2500));
+      const analysisPromise = analyzeImage(base64);
+      
+      const [result] = await Promise.all([analysisPromise, minLoadTime]);
+      
+      setAnalysisResult(result);
+      setAppState(AppState.RESULTS);
+    } catch (err) {
+      console.error(err);
+      setError("Oops! The magical robot got confused. Try a clearer picture!");
+      setAppState(AppState.ERROR);
+    }
+  }, []);
+
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Reset state
-    setAppState(AppState.ANALYZING);
-    setError(null);
-
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64 = reader.result as string;
-      setImageSrc(base64);
-
-      try {
-        // Minimum loading time for UX (so the animation isn't too jarringly fast)
-        const minLoadTime = new Promise(resolve => setTimeout(resolve, 2500));
-        const analysisPromise = analyzeImage(base64);
-        
-        const [result] = await Promise.all([analysisPromise, minLoadTime]);
-        
-        setAnalysisResult(result);
-        setAppState(AppState.RESULTS);
-      } catch (err) {
-        console.error(err);
-        setError("Oops! The magical robot got confused. Try a clearer picture!");
-        setAppState(AppState.ERROR);
-      }
+      await processImage(base64);
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [processImage]);
+
+  const handleCameraCapture = useCallback(async (base64: string) => {
+    // Transition from Camera directly to processing
+    await processImage(base64);
+  }, [processImage]);
 
   const resetApp = () => {
     setImageSrc(null);
@@ -88,24 +98,20 @@ function App() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-6 w-full max-w-md">
-            {/* Camera Button */}
-            <label className="flex-1 cursor-pointer group btn-3d">
-              <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment"
-                onChange={handleFileChange}
-                className="hidden" 
-              />
-              <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-b from-cyan-400 to-cyan-500 border-b-8 border-cyan-700 rounded-3xl hover:brightness-110 transition-all">
+            {/* Camera Button - Opens In-App Camera */}
+            <button 
+              onClick={() => setAppState(AppState.CAMERA)}
+              className="flex-1 cursor-pointer group btn-3d"
+            >
+              <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-b from-cyan-400 to-cyan-500 border-b-8 border-cyan-700 rounded-3xl hover:brightness-110 transition-all h-full">
                 <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2">
                    <CameraIcon className="w-8 h-8 text-white" />
                 </div>
                 <span className="font-black text-2xl text-white drop-shadow-md">Snap Photo</span>
               </div>
-            </label>
+            </button>
 
-            {/* Upload Button */}
+            {/* Upload Button - Opens File Picker */}
             <label className="flex-1 cursor-pointer group btn-3d">
               <input 
                 type="file" 
@@ -113,7 +119,7 @@ function App() {
                 onChange={handleFileChange}
                 className="hidden" 
               />
-              <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-b from-purple-500 to-purple-600 border-b-8 border-purple-800 rounded-3xl hover:brightness-110 transition-all">
+              <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-b from-purple-500 to-purple-600 border-b-8 border-purple-800 rounded-3xl hover:brightness-110 transition-all h-full">
                 <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2">
                    <UploadIcon className="w-8 h-8 text-white" />
                 </div>
@@ -128,6 +134,14 @@ function App() {
              <div className="w-3 h-3 rounded-full bg-white animate-bounce"></div>
           </div>
         </div>
+      )}
+
+      {/* CAMERA VIEW */}
+      {appState === AppState.CAMERA && (
+        <CameraView 
+          onCapture={handleCameraCapture} 
+          onClose={() => setAppState(AppState.IDLE)} 
+        />
       )}
 
       {/* LOADING VIEW */}

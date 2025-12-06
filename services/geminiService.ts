@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { AnalysisResult } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -80,6 +80,76 @@ export const analyzeImage = async (base64Image: string): Promise<AnalysisResult>
     }
   } catch (error) {
     console.error("Gemini Analysis Failed:", error);
+    throw error;
+  }
+};
+
+export const askQuestion = async (base64Image: string, base64Audio: string, mimeType: string): Promise<string> => {
+  try {
+    const cleanImageBase64 = base64Image.split(',')[1];
+    // Audio usually comes in as data url as well from FileReader
+    const cleanAudioBase64 = base64Audio.split(',')[1] || base64Audio;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: cleanImageBase64,
+            },
+          },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: cleanAudioBase64,
+            }
+          },
+          {
+            text: "You are Professor Sparkle. The child has just sent you an audio question about this image. Listen to their question and answer it in a text format. Keep the answer short (max 2 sentences), very simple, funny, and educational for a 5-year-old. Use emojis!",
+          },
+        ],
+      },
+    });
+
+    return response.text || "Oops! I couldn't hear that properly. Can you ask again? 🙉";
+  } catch (error) {
+    console.error("Gemini Q&A Failed:", error);
+    return "Oh no! My robot ears are clogged. Try again! 🤖";
+  }
+};
+
+export const speakText = async (text: string): Promise<ArrayBuffer> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: {
+        parts: [{ text: text }],
+      },
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Puck' }, // 'Puck' is mischievous/fun, perfect for kids app
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) throw new Error("No audio data received");
+
+    // Convert base64 to ArrayBuffer manually
+    const binaryString = atob(base64Audio);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  } catch (error) {
+    console.error("TTS Failed:", error);
     throw error;
   }
 };

@@ -1,3 +1,4 @@
+
 export interface BoundingBox {
   ymin: number;
   xmin: number;
@@ -20,6 +21,7 @@ export interface AnalysisResult {
 
 export enum AppState {
   IDLE = 'IDLE',
+  CAMERA = 'CAMERA',
   ANALYZING = 'ANALYZING',
   RESULTS = 'RESULTS',
   ERROR = 'ERROR'

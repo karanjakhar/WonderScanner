@@ -53,11 +53,18 @@
         50% { transform: translateY(-10px); }
       }
 
+      /* Sound Wave Animation */
+      @keyframes wave {
+        0%, 100% { height: 20%; transform: scaleY(1); }
+        50% { height: 100%; transform: scaleY(1.2); }
+      }
+
       .animate-float { animation: float 6s ease-in-out infinite; }
       .animate-float-delayed { animation: float 7s ease-in-out infinite 2s; }
       .animate-wiggle { animation: wiggle 2s ease-in-out infinite; }
       .animate-pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
       .animate-bounce-gentle { animation: bounce-gentle 3s ease-in-out infinite; }
+      .animate-wave { animation: wave 1s ease-in-out infinite; }
 
       /* Utility for staggered animations */
       .delay-100 { animation-delay: 100ms; }
