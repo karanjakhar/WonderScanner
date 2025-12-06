@@ -1,0 +1,7 @@
+{
+  "name": "WonderScanner: ELI5 AR",
+  "description": "Snap a photo of anything and let our friendly AI explain how it works with interactive, clickable diagrams designed for curious minds.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
